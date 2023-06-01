@@ -1,9 +1,16 @@
 from flask import Flask, request, jsonify
-import requests
+import requests, math
 
 app = Flask(__name__)
 
-
+def format_size(size):
+    if size < 1024:
+        return f"{size} KB"
+    elif size < 1024 * 1024:
+        return f"{math.ceil(size / 1024)} MB"
+    else:
+        return f"{math.ceil(size / (1024 * 1024))} GB"
+    
 def get_all_repositories(username, access_token):
   url = f'https://api.github.com/users/{username}/repos'
   headers = {'Authorization': f'Bearer {access_token}'}
@@ -32,7 +39,7 @@ def get_repository_stats():
   username = request.args.get('username')
   forked = request.args.get('forked')
 
-  access_token = 'YOUR_PERSONAL_TOKEN' #add your token
+  access_token = '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' #add your token
 
   repositories = get_all_repositories(username, access_token)
 
@@ -62,7 +69,7 @@ def get_repository_stats():
       'total_repositories': total_repositories,
       'total_stargazers': total_stargazers,
       'total_forks': total_forks,
-      'average_repository_size': average_repository_size,
+      'average_repository_size': format_size(average_repository_size),
       'languages': sorted_languages
     }
 
