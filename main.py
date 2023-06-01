@@ -41,7 +41,7 @@ def get_repository_stats():
   username = request.args.get('username')
   forked = request.args.get('forked')
 
-  access_token = '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' #add your token
+  access_token = 'YOUR_TOEKN' #add your token
 
   repositories = get_all_repositories(username, access_token, forked)
 
