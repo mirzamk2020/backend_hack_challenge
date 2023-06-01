@@ -11,14 +11,16 @@ def format_size(size):
     else:
         return f"{math.ceil(size / (1024 * 1024))} GB"
     
-def get_all_repositories(username, access_token):
+def get_all_repositories(username, access_token, forked):
   url = f'https://api.github.com/users/{username}/repos'
   headers = {'Authorization': f'Bearer {access_token}'}
   repositories = []
 
-  page = 1
+  params = {'page': 1, 'per_page': 100}
+  if not forked:
+    params["type"] = "owner"
+
   while True:
-    params = {'page': page, 'per_page': 100}
     response = requests.get(url, headers=headers, params=params)
     if response.status_code == 200:
       page_repositories = response.json()
@@ -27,7 +29,7 @@ def get_all_repositories(username, access_token):
       if len(page_repositories) < 100:
         break  # Reached the last page of repositories
       else:
-        page += 1
+        params['page'] += 1
     else:
       break  # Error occurred, break the loop
 
@@ -39,9 +41,9 @@ def get_repository_stats():
   username = request.args.get('username')
   forked = request.args.get('forked')
 
-  access_token = 'YOUR_TOKEN' #add your token
+  access_token = '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' #add your token
 
-  repositories = get_all_repositories(username, access_token)
+  repositories = get_all_repositories(username, access_token, forked)
 
   if repositories:
     total_repositories = len(repositories)
@@ -52,8 +54,6 @@ def get_repository_stats():
 
     languages = {}
     for repo in repositories:
-      if not forked and repo['fork']:
-        continue
       language = repo['language']
       if language:
         if language in languages:
