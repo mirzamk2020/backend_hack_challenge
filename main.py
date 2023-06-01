@@ -1,60 +1,79 @@
+from flask import Flask, request, jsonify
 import requests
 
-def get_aggregated_stats(username, include_forks=True):
-    base_url = f"https://api.github.com/users/{username}/repos"
-    per_page = 100
-    params = {"per_page": per_page, "page": 1}
-    headers = {
-        "Accept": "application/vnd.github.v3+json",
-        "Authorization": "Bearer <YOUR_TOKEN>"  # Replace with your token
-    }
+app = Flask(__name__)
 
-    if not include_forks:
-        params["type"] = "owner"
 
-    repositories = []
+def get_all_repositories(username, access_token):
+  url = f'https://api.github.com/users/{username}/repos'
+  headers = {'Authorization': f'Bearer {access_token}'}
+  repositories = []
 
-    while True:
-        response = requests.get(base_url, params=params, headers=headers)
-        repos = response.json()
+  page = 1
+  while True:
+    params = {'page': page, 'per_page': 100}
+    response = requests.get(url, headers=headers, params=params)
+    if response.status_code == 200:
+      page_repositories = response.json()
+      repositories.extend(page_repositories)
 
-        if not repos:
-            break
+      if len(page_repositories) < 100:
+        break  # Reached the last page of repositories
+      else:
+        page += 1
+    else:
+      break  # Error occurred, break the loop
 
-        repositories.extend(repos)
+  return repositories
 
-        if len(repos) < per_page:
-            break
 
-        params["page"] += 1
+@app.route('/repositories', methods=['GET'])
+def get_repository_stats():
+  username = request.args.get('username')
+  forked = request.args.get('forked')
 
-    total_count = len(repositories)
-    total_stargazers = sum(repo["stargazers_count"] for repo in repositories)
-    total_forks = sum(repo["forks_count"] for repo in repositories)
-    average_size = sum(repo["size"] for repo in repositories) / total_count
+  access_token = 'YOUR_PERSONAL_TOKEN' #add your token
+
+  repositories = get_all_repositories(username, access_token)
+
+  if repositories:
+    total_repositories = len(repositories)
+    total_stargazers = sum(repo['stargazers_count'] for repo in repositories)
+    total_forks = sum(repo['forks_count'] for repo in repositories)
+    average_repository_size = sum(
+      repo['size'] for repo in repositories) / total_repositories
 
     languages = {}
     for repo in repositories:
-        language = repo["language"]
-        if language:
-            if language in languages:
-                languages[language] += 1
-            else:
-                languages[language] = 1
+      if not forked and repo['fork']:
+        continue
+      language = repo['language']
+      if language:
+        if language in languages:
+          languages[language] += 1
+        else:
+          languages[language] = 1
 
-    sorted_languages = sorted(languages.items(), key=lambda x: x[1], reverse=True)
+    sorted_languages = sorted(languages.items(),
+                              key=lambda x: x[1],
+                              reverse=True)
 
-    aggregated_stats = {
-        "total_count": total_count,
-        "total_stargazers": total_stargazers,
-        "total_forks": total_forks,
-        "average_size": average_size,
-        "languages": sorted_languages
+    response_data = {
+      'total_repositories': total_repositories,
+      'total_stargazers': total_stargazers,
+      'total_forks': total_forks,
+      'average_repository_size': average_repository_size,
+      'languages': sorted_languages
     }
 
-    return aggregated_stats
+    return jsonify(
+      response_data), 200  # Return response with status code 200 (OK)
+  else:
+    error_message = f'Failed to retrieve repository data for user {username}.'
+    return jsonify({
+      'error': error_message
+    }), 500  # Return response with status code 500 (Internal Server Error)
 
-# Demo usage
-username = "seantomburke"
-aggregated_stats = get_aggregated_stats(username, include_forks=False)
-print(aggregated_stats)
+
+if __name__ == '__main__':
+  app.run()
